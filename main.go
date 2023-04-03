@@ -145,6 +145,13 @@ func process(config *Config, data *Data, bot *tgbotapi.BotAPI, msg *tgbotapi.Mes
 		log.Println("ignoring msg from bot")
 		return
 	}
+
+	// Filter messages we do not want to respond to.
+	if msg.NewChatMembers != nil || msg.LeftChatMember != nil || msg.Location != nil || msg.Contact != nil {
+		log.Println("ignoring msg: NewChatMembers,LeftChatMember,Location,Contact")
+		return
+	}
+
 	// Do not warn users who wrote a response to a message, to reduce the noise. For now we
 	// assume the primary target of attackers are users who ask a question, which are usually
 	// top-level messages.

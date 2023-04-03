@@ -162,7 +162,8 @@ func process(config *Config, data *Data, bot *tgbotapi.BotAPI, msg *tgbotapi.Mes
 	chatID := ChatID(msg.Chat.ID)
 	userID := UserID(msg.From.ID)
 
-	log.Printf("update: ChatID=%v, ChatTitle=%v\n", msg.Chat.ID, msg.Chat.Title)
+	log.Printf("update: ChatID=%v, ChatTitle=%v, UserID=%d\n",
+		chatID, msg.Chat.Title, userID)
 
 	data.lock.Lock()
 	defer data.lock.Unlock()

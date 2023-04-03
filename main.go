@@ -22,6 +22,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"sync"
 	"syscall"
 	"time"
@@ -36,6 +37,18 @@ var (
 	// replying to them that warns them of scammers.
 	warnAfter = flag.Duration("warnAfter", 14*24*time.Hour, "Warn user when they post a message after this amount of inactivity. Defaults to two weeks.")
 )
+
+var buildCommit = func() string {
+	if info, ok := debug.ReadBuildInfo(); ok {
+		for _, setting := range info.Settings {
+			if setting.Key == "vcs.revision" {
+				return setting.Value
+			}
+		}
+	}
+
+	return ""
+}()
 
 const groupTitleBitBoxEn = "BitBox"
 const groupTitleBitBoxDE = "BitBox DE"
@@ -168,6 +181,11 @@ func process(config *Config, data *Data, bot *tgbotapi.BotAPI, msg *tgbotapi.Mes
 }
 
 func main() {
+	flag.Usage = func() {
+		fmt.Fprintf(flag.CommandLine.Output(), "Build commit: %v\n", buildCommit)
+		fmt.Fprintf(flag.CommandLine.Output(), "Usage of %s:\n", os.Args[0])
+		flag.PrintDefaults()
+	}
 	flag.Parse()
 
 	configBytes, err := ioutil.ReadFile(*configFilename)

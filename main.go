@@ -33,9 +33,6 @@ import (
 var (
 	cacheFilename  = flag.String("cache", "cache.json", "Filename for the persistent cache")
 	configFilename = flag.String("config", "config.json", "Config file. Protect with 0600 as it contains the secret bot token.")
-	// If a user posts a message for the first time after this amount of time, we send a message
-	// replying to them that warns them of scammers.
-	warnAfter = flag.Duration("warnAfter", 14*24*time.Hour, "Warn user when they post a message after this amount of inactivity. Defaults to two weeks.")
 )
 
 var buildCommit = func() string {
@@ -54,11 +51,29 @@ const groupTitleBitBoxEn = "BitBox"
 const groupTitleBitBoxDE = "BitBox DE"
 const warnMessageDefaultEn = "Do not respond to any direct messages or calls."
 const warnMessageDefaultDe = "Antworte nicht auf private Nachrichten oder Anrufe. Betrüger am Werk."
+const warnAfterDefault = 14 * 24 * time.Hour
+
+type jsonDuration struct {
+	time.Duration
+}
+
+func (d *jsonDuration) UnmarshalJSON(b []byte) error {
+	var s string
+	if err := json.Unmarshal(b, &s); err != nil {
+		return err
+	}
+	var err error
+	d.Duration, err = time.ParseDuration(s)
+	return err
+}
 
 type Config struct {
 	BotToken      string
 	WarnMessageEn string
 	WarnMessageDe string
+	// If a user posts a message for the first time after this amount of time, we send a message
+	// replying to them that warns them of scammers.
+	WarnAfter jsonDuration
 }
 
 type UserID int
@@ -157,7 +172,7 @@ func process(config *Config, data *Data, bot *tgbotapi.BotAPI, msg *tgbotapi.Mes
 		data.ChatData[chatID].UserData[userID] = &UserData{}
 	}
 	userData := data.ChatData[chatID].UserData[userID]
-	if time.Since(userData.LastMessageAt) > *warnAfter {
+	if time.Since(userData.LastMessageAt) > config.WarnAfter.Duration {
 		// If the user hasn't posted in this group in over a month, send a warning message
 		warnMessage := config.WarnMessageEn
 		if msg.Chat.Title == groupTitleBitBoxDE {
@@ -202,6 +217,9 @@ func main() {
 	if config.WarnMessageDe == "" {
 		config.WarnMessageDe = warnMessageDefaultDe
 	}
+	if config.WarnAfter.Duration == 0 {
+		config.WarnAfter.Duration = warnAfterDefault
+	}
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
@@ -244,7 +262,7 @@ func main() {
 
 	go data.periodicSave()
 
-	log.Printf("running; warnAfter=%v\n", *warnAfter)
+	log.Printf("running; warnAfter=%v\n", config.WarnAfter)
 	for {
 		select {
 		case update := <-updates:
